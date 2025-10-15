@@ -1,15 +1,160 @@
-body {
-  font-family: Arial, sans-serif;
-  margin: 40px;
-  background-color: #f8f9fa;
-}
-h1 {
-  color: #1e88e5;
-}
-#summary {
-  background: white;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.1);
+:root {
+  --bg: #0e1013;
+  --fg: #e9eef5;
+  --muted: #aab4c2;
+  --card: #151a21;
+  --card-2: #1b222b;
+  --border: #2a3441;
+  --primary: #67b3ff;
+  --primary-2: #4da2fb;
+  --accent-a: #77d1b1;
+  --accent-b: #f2a65a;
+  --shadow: 0 6px 18px rgba(0,0,0,0.35);
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7f9fc;
+    --fg: #0e1824;
+    --muted: #526277;
+    --card: #ffffff;
+    --card-2: #f2f5f9;
+    --border: #d6dee8;
+    --primary: #0d6efd;
+    --primary-2: #0b5ed7;
+    --accent-a: #4e79a7;
+    --accent-b: #f28e2c;
+    --shadow: 0 10px 20px rgba(14, 24, 36, 0.06);
+  }
+}
+
+/* Optional manual theme override if body[data-theme] is provided */
+body[data-theme="dark"] {
+  --bg: #0e1013;
+  --fg: #e9eef5;
+  --muted: #aab4c2;
+  --card: #151a21;
+  --card-2: #1b222b;
+  --border: #2a3441;
+  --primary: #67b3ff;
+  --primary-2: #4da2fb;
+  --accent-a: #77d1b1;
+  --accent-b: #f2a65a;
+  --shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--fg);
+  background: radial-gradient(1200px 800px at 20% -10%, #1b2330 0%, var(--bg) 60%),
+              radial-gradient(1000px 700px at 120% 0%, #192029 0%, var(--bg) 50%);
+  background-attachment: fixed;
+  line-height: 1.45;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+/* Header */
+.header { text-align: center; margin-bottom: 18px; }
+.header h1 { margin: 0; font-size: 32px; letter-spacing: .3px; }
+.header .subtitle { margin-top: 6px; color: var(--muted); font-size: 14px; }
+
+/* Stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0 22px;
+}
+.stat-card {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.stat-icon { width: 44px; height: 44px; display: grid; place-items: center; font-size: 22px; background: rgba(255,255,255,0.06); border-radius: 10px; }
+.stat-content h3 { margin: 0; font-size: 20px; font-weight: 700; }
+.stat-content p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+/* Charts */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.chart-container {
+  background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 12px 8px;
+  box-shadow: var(--shadow);
+}
+.chart-container h2 { margin: 6px 8px 10px; font-size: 16px; font-weight: 600; color: var(--muted); }
+.chart-container canvas { width: 100% !important; height: 320px !important; background: transparent; border-radius: 10px; }
+
+/* Table */
+.table-container { margin-top: 20px; }
+.table-container h2 { margin: 0 0 10px; font-size: 18px; color: var(--muted); }
+.table-wrapper {
+  max-height: 60vh;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+  box-shadow: var(--shadow);
+}
+#trips-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+#trips-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--card-2);
+  color: var(--fg);
+  text-align: left; font-weight: 600; font-size: 12px; letter-spacing: .2px;
+  border-bottom: 1px solid var(--border);
+}
+#trips-table th, #trips-table td { padding: 9px 10px; }
+#trips-table tbody tr { border-bottom: 1px solid var(--border); }
+#trips-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+#trips-table td:nth-child(4), #trips-table td:nth-child(5) { text-align: right; }
+.loading { text-align: center; color: var(--muted); padding: 16px; }
+
+/* Footer */
+.footer { text-align: center; margin-top: 28px; color: var(--muted); font-size: 12px; }
+
+/* Utilities */
+button, .btn {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background .15s ease, transform .05s ease;
+}
+button:hover, .btn:hover { background: var(--primary-2); }
+button:active, .btn:active { transform: translateY(1px); }
+
+/* Responsive */
+@media (max-width: 1000px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .stat-card { grid-template-columns: 36px 1fr; gap: 10px; }
+  .stat-icon { width: 36px; height: 36px; font-size: 18px; }
+  .chart-container canvas { height: 260px !important; }
+}

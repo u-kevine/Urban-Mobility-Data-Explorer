@@ -1,17 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NYC Taxi Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NYC Taxi Dashboard</title>
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>NYC Taxi Data Dashboard</h1>
-  <div id="summary"></div>
-  <canvas id="chart"></canvas>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="script.js"></script>
+    <div class="container">
+        <div class="header">
+            <h1>NYC Taxi Dashboard</h1>
+            <p class="subtitle">Real-time urban mobility insights and analytics</p>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Toggle Theme</button>
+        </div>
+
+        <section id="filters" style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow);">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: end;">
+                <div>
+                    <label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--muted); font-weight: 600;">Date from:</label>
+                    <input type="date" id="date-from" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-2); color: var(--fg);" />
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--muted); font-weight: 600;">Date to:</label>
+                    <input type="date" id="date-to" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-2); color: var(--fg);" />
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--muted); font-weight: 600;">Hour: <span id="hour-value">0</span></label>
+                    <input type="range" id="hour-slider" min="0" max="23" value="0" style="width: 100%;" />
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--muted); font-weight: 600;">Distance (km):</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="distance-min" placeholder="Min" step="0.1" style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-2); color: var(--fg);" />
+                        <input type="number" id="distance-max" placeholder="Max" step="0.1" style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-2); color: var(--fg);" />
+                    </div>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--muted); font-weight: 600;">Fare ($):</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="fare-min" placeholder="Min" step="0.1" style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-2); color: var(--fg);" />
+                        <input type="number" id="fare-max" placeholder="Max" step="0.1" style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-2); color: var(--fg);" />
+                    </div>
+                </div>
+                <button id="apply-filters" class="btn">Apply Filters</button>
+            </div>
+        </section>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">T</div>
+                <div class="stat-content">
+                    <h3 id="total-trips">0</h3>
+                    <p>Total Trips</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">D</div>
+                <div class="stat-content">
+                    <h3 id="avg-duration">0</h3>
+                    <p>Avg Duration (min)</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">K</div>
+                <div class="stat-content">
+                    <h3 id="avg-distance">0</h3>
+                    <p>Avg Distance (km)</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">S</div>
+                <div class="stat-content">
+                    <h3 id="avg-speed">0</h3>
+                    <p>Avg Speed (km/h)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h2>Trips by Hour</h2>
+                <canvas id="hourChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Duration Distribution</h2>
+                <canvas id="durationChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Distance Distribution</h2>
+                <canvas id="distanceChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Speed Distribution</h2>
+                <canvas id="speedChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Pickup Heatmap</h2>
+                <canvas id="heatmapChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Top 10 Routes</h2>
+                <canvas id="topRoutesChart"></canvas>
+            </div>
+        </div>
+
+        <div class="charts-grid" style="margin-top: 24px;">
+            <div class="chart-container">
+                <h2>Busiest Hours (Top 5)</h2>
+                <canvas id="busiestHoursChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Fare Trend (Daily Avg)</h2>
+                <canvas id="fareTrendChart"></canvas>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h2>Trip Details</h2>
+            <div class="table-wrapper">
+                <table id="trips-table">
+                    <thead>
+                        <tr>
+                            <th>Trip ID</th>
+                            <th>Pickup Time</th>
+                            <th>Dropoff Time</th>
+                            <th>Duration (min)</th>
+                            <th>Distance (km)</th>
+                            <th>Speed (km/h)</th>
+                            <th>Passengers</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trips-tbody"></tbody>
+                </table>
+            </div>
+            <div id="pagination"></div>
+        </div>
+
+        <div class="footer">
+            <p>NYC Taxi Dashboard • Real-time urban mobility analytics</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
-
