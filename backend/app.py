@@ -157,6 +157,27 @@ def safe_dict(row):
 def summary():
     """Aggregated summary with error handling"""
     try:
+        if USE_MOCK_DATA:
+            # Use mock data
+            trips = MOCK_TRIPS
+            if not trips:
+                return jsonify({"error": "No mock data available"}), 404
+            
+            total_trips = len(trips)
+            avg_distance_km = round(sum(t['trip_distance_km'] for t in trips) / total_trips, 3)
+            avg_fare = round(sum(t['fare_amount'] for t in trips) / total_trips, 2)
+            avg_tip = round(sum(t['tip_amount'] for t in trips) / total_trips, 2)
+            avg_speed_kmh = round(sum(t['trip_speed_kmh'] for t in trips) / total_trips, 2)
+            
+            return jsonify({
+                'total_trips': total_trips,
+                'avg_distance_km': avg_distance_km,
+                'avg_fare': avg_fare,
+                'avg_tip': avg_tip,
+                'avg_speed_kmh': avg_speed_kmh
+            })
+        
+        # Database mode
         start = parse_date_param("start")
         end = parse_date_param("end")
         params = {}
