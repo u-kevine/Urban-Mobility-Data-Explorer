@@ -4,12 +4,12 @@ A comprehensive NYC Taxi Dashboard for analyzing urban mobility patterns with re
 
 ## Features
 
-- **Interactive Dashboard** - Real-time trip analytics and visualizations
-- **Pickup Heatmaps** - Geographic distribution of taxi pickups
-- **Route Analysis** - Top routes and traffic patterns
-- **Statistical Insights** - Trip duration, distance, fare analysis
-- **Modern UI** - Clean, responsive design with dark/light themes
-- **Live Filtering** - Dynamic data filtering by date, time, distance, and fare
+- Interactive Dashboard - Real-time trip analytics and visualizations
+- Pickup Heatmaps - Geographic distribution of taxi pickups
+- Route Analysis - Top routes and traffic patterns
+- Statistical Insights - Trip duration, distance, fare analysis
+- Modern UI - Clean, responsive design with dark/light themes
+- Live Filtering - Dynamic data filtering by date, time, distance, and fare
 
 ## Quick Start
 
@@ -20,13 +20,13 @@ A comprehensive NYC Taxi Dashboard for analyzing urban mobility patterns with re
 
 ### Installation
 
-1. **Clone the repository**
+1. Clone the repository
    ```bash
    git clone https://github.com/u-kevine/Urban-Mobility-Data-Explorer.git
    cd Urban-Mobility-Data-Explorer-3
    ```
 
-2. **Install dependencies**
+2. Install dependencies
    ```bash
    pip3 install -r requirements.txt
    ```
@@ -87,10 +87,10 @@ db/                  # Database schema
 
 ### Development
 
-- **Backend**: Flask with SQLAlchemy, CORS enabled
-- **Frontend**: Vanilla JavaScript with Chart.js
-- **Database**: MySQL with fallback to mock data
-- **Production**: Gunicorn WSGI server
+- Backend: Flask with SQLAlchemy, CORS enabled
+- Frontend: Vanilla JavaScript with Chart.js
+- Database: MySQL with fallback to mock data
+- Production: Gunicorn WSGI server
 
 ### Contributing
 
