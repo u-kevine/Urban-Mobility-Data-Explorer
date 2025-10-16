@@ -62,7 +62,7 @@ The Trip Data Dashboard is a web-based tool for analyzing urban taxi trip data. 
 
 Clone repository:
 
-* git clone https://github.com/yourusername/trip-dashboard.git
+* git clone https://github.com/yourusername/Urban-Mobility-Data-Explorer.git
 * cd trip-dashboard
 
 * Install dependencies:
