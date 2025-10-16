@@ -1,23 +1,40 @@
 import os
 from datetime import datetime
-from math import isnan
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-# Optional: load .env
+# Load environment variables
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except Exception:
     pass
 
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/nyc_taxi")
+# Database URL - updated to match your docker-compose
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "mysql+pymysql://my_user:my_password@localhost:3306/my_database"
+)
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+# Create engine with connection pooling
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    pool_size=10,
+    max_overflow=20
+)
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend
+
+# Configure logging
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # -------------------------
@@ -25,20 +42,24 @@ app = Flask(__name__)
 # -------------------------
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Global error handler for debugging"""
-    import traceback
-    app.logger.error(f"Error: {str(e)}")
-    app.logger.error(traceback.format_exc())
+    """Global error handler"""
+    logger.error(f"Error: {str(e)}", exc_info=True)
     return jsonify({
         "error": str(e),
         "type": type(e).__name__
     }), 500
 
 
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Endpoint not found"}), 404
+
+
 # -------------------------
 # Utilities
 # -------------------------
 def parse_date_param(name):
+    """Parse date from query parameters"""
     val = request.args.get(name)
     if not val:
         return None
@@ -47,12 +68,12 @@ def parse_date_param(name):
             return datetime.strptime(val, "%Y-%m-%d")
         return datetime.fromisoformat(val.replace('Z', '+00:00'))
     except Exception as e:
-        app.logger.warning(f"Date parse error for {name}={val}: {e}")
+        logger.warning(f"Date parse error for {name}={val}: {e}")
         return None
 
 
 def date_filter_clause(params, start, end):
-    """Returns SQL clause string and adds to params dict."""
+    """Build date filter SQL clause"""
     clause = ""
     if start:
         clause += " AND pickup_datetime >= :start"
@@ -64,7 +85,7 @@ def date_filter_clause(params, start, end):
 
 
 def safe_dict(row):
-    """Safely convert SQLAlchemy row to dict, handling None values"""
+    """Convert SQLAlchemy row to dict"""
     if row is None:
         return {}
     try:
@@ -74,12 +95,52 @@ def safe_dict(row):
 
 
 # -------------------------
-# Endpoints
+# API Endpoints
 # -------------------------
+
+@app.route("/", methods=["GET"])
+def root():
+    """API root with available endpoints"""
+    return jsonify({
+        "status": "ok",
+        "message": "NYC Taxi Analytics API",
+        "version": "1.0",
+        "endpoints": {
+            "health": "/health",
+            "summary": "/api/summary",
+            "time_series": "/api/time-series?granularity=hour|day",
+            "hotspots": "/api/hotspots?k=20",
+            "fare_stats": "/api/fare-stats",
+            "top_routes": "/api/top-routes?n=20",
+            "trips": "/api/trips?page=1&limit=100",
+            "insights": "/api/insights"
+        }
+    })
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    """Health check endpoint"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT COUNT(*) as count FROM trips"))
+            count = result.fetchone()[0]
+        return jsonify({
+            "status": "healthy",
+            "database": "connected",
+            "trips_count": count
+        })
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e)
+        }), 503
+
 
 @app.route("/api/summary", methods=["GET"])
 def summary():
-    """Aggregated summary with error handling"""
+    """Get aggregated summary statistics"""
     try:
         start = parse_date_param("start")
         end = parse_date_param("end")
@@ -103,17 +164,14 @@ def summary():
                 return jsonify({"error": "No data found"}), 404
             return jsonify(safe_dict(row))
     
-    except SQLAlchemyError as e:
-        app.logger.error(f"Database error in /api/summary: {e}")
-        return jsonify({"error": "Database error", "details": str(e)}), 500
     except Exception as e:
-        app.logger.error(f"Error in /api/summary: {e}")
+        logger.error(f"Error in /api/summary: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/time-series", methods=["GET"])
 def time_series():
-    """Time series endpoint with error handling"""
+    """Get time series data"""
     try:
         gran = request.args.get("granularity", "hour")
         start = parse_date_param("start")
@@ -140,21 +198,20 @@ def time_series():
             return jsonify(rows)
     
     except Exception as e:
-        app.logger.error(f"Error in /api/time-series: {e}")
+        logger.error(f"Error in /api/time-series: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/hotspots", methods=["GET"])
 def hotspots():
-    """Top-K pickup zones with better error handling"""
+    """Get top pickup hotspots"""
     try:
-        k = min(int(request.args.get("k", 20)), 100)  # Cap at 100
+        k = min(int(request.args.get("k", 20)), 100)
         start = parse_date_param("start")
         end = parse_date_param("end")
         params = {}
         clause = date_filter_clause(params, start, end)
 
-        # First try with zones
         sql = text(f"""
             SELECT 
                 COALESCE(z.zone_id, 0) AS zone_id,
@@ -197,20 +254,19 @@ def hotspots():
         return jsonify(rows)
     
     except Exception as e:
-        app.logger.error(f"Error in /api/hotspots: {e}")
+        logger.error(f"Error in /api/hotspots: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/fare-stats", methods=["GET"])
 def fare_stats():
-    """Simplified fare stats to avoid complex subqueries"""
+    """Get fare statistics"""
     try:
         start = parse_date_param("start")
         end = parse_date_param("end")
         params = {}
         clause = date_filter_clause(params, start, end)
 
-        # Basic stats
         sql = text(f"""
             SELECT
                 ROUND(COALESCE(AVG(fare_amount), 0), 2) AS avg_fare,
@@ -225,40 +281,16 @@ def fare_stats():
         with engine.connect() as conn:
             summary = safe_dict(conn.execute(sql, params).fetchone())
 
-        # Simplified percentiles
-        quartiles = {"q1": None, "median": None, "q3": None}
-        try:
-            perc_sql = text(f"""
-                SELECT
-                    fare_amount,
-                    PERCENT_RANK() OVER (ORDER BY fare_amount) AS pct_rank
-                FROM trips
-                WHERE 1=1 {clause} AND fare_amount IS NOT NULL
-                LIMIT 10000
-            """)
-            with engine.connect() as conn:
-                rows = conn.execute(perc_sql, params).fetchall()
-                if rows:
-                    fares = [r[0] for r in rows]
-                    fares.sort()
-                    n = len(fares)
-                    if n > 0:
-                        quartiles["q1"] = round(fares[int(n * 0.25)], 2)
-                        quartiles["median"] = round(fares[int(n * 0.50)], 2)
-                        quartiles["q3"] = round(fares[int(n * 0.75)], 2)
-        except Exception as e:
-            app.logger.warning(f"Could not compute quartiles: {e}")
-
-        return jsonify({"summary": summary, "quartiles": quartiles})
+        return jsonify({"summary": summary})
     
     except Exception as e:
-        app.logger.error(f"Error in /api/fare-stats: {e}")
+        logger.error(f"Error in /api/fare-stats: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/top-routes", methods=["GET"])
 def top_routes():
-    """Top routes with null handling"""
+    """Get top routes"""
     try:
         n = min(int(request.args.get("n", 20)), 100)
         start = parse_date_param("start")
@@ -289,20 +321,20 @@ def top_routes():
             return jsonify(rows)
     
     except Exception as e:
-        app.logger.error(f"Error in /api/top-routes: {e}")
+        logger.error(f"Error in /api/top-routes: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/trips", methods=["GET"])
 def trips():
-    """Paginated trip details with better validation"""
+    """Get paginated trip details"""
     try:
         start = parse_date_param("start")
         end = parse_date_param("end")
         params = {}
         clause = date_filter_clause(params, start, end)
 
-        # Optional filters with validation
+        # Filters
         if request.args.get("min_distance"):
             try:
                 params["min_distance"] = float(request.args.get("min_distance"))
@@ -316,23 +348,9 @@ def trips():
                 clause += " AND trip_distance_km <= :max_distance"
             except ValueError:
                 pass
-        
-        if request.args.get("min_fare"):
-            try:
-                params["min_fare"] = float(request.args.get("min_fare"))
-                clause += " AND fare_amount >= :min_fare"
-            except ValueError:
-                pass
-        
-        if request.args.get("max_fare"):
-            try:
-                params["max_fare"] = float(request.args.get("max_fare"))
-                clause += " AND fare_amount <= :max_fare"
-            except ValueError:
-                pass
 
         page = max(int(request.args.get("page", 1)), 1)
-        limit = min(int(request.args.get("limit", 100)), 1000)  # Cap at 1000
+        limit = min(int(request.args.get("limit", 100)), 1000)
         offset = (page - 1) * limit
 
         sql = text(f"""
@@ -353,23 +371,22 @@ def trips():
         with engine.connect() as conn:
             rows = [safe_dict(r) for r in conn.execute(sql, params).fetchall()]
             
-            # Get total count (with timeout protection)
             try:
                 count_sql = text(f"SELECT COUNT(*) AS total FROM trips WHERE 1=1 {clause}")
                 total = conn.execute(count_sql, params).fetchone()[0]
             except:
-                total = -1  # Unknown if query times out
+                total = -1
 
         return jsonify({"page": page, "limit": limit, "total": total, "rows": rows})
     
     except Exception as e:
-        app.logger.error(f"Error in /api/trips: {e}")
+        logger.error(f"Error in /api/trips: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/insights", methods=["GET"])
 def insights():
-    """Simplified insights endpoint"""
+    """Get data insights"""
     try:
         start = parse_date_param("start")
         end = parse_date_param("end")
@@ -377,7 +394,7 @@ def insights():
         clause = date_filter_clause(params, start, end)
 
         with engine.connect() as conn:
-            # 1) Rush-hour peaks
+            # Rush hour analysis
             sql1 = text(f"""
                 SELECT COALESCE(hour_of_day, 0) AS hour_of_day, COUNT(*) AS trips
                 FROM trips
@@ -387,8 +404,8 @@ def insights():
             """)
             rush_rows = [safe_dict(r) for r in conn.execute(sql1, params).fetchall()]
 
-            # 2) Morning hotspots
-            sql2_morning = text(f"""
+            # Morning hotspots
+            sql2 = text(f"""
                 SELECT t.pickup_zone_id, COALESCE(z.zone_name, 'Unknown') AS zone_name, COUNT(*) AS trips
                 FROM trips t
                 LEFT JOIN zones z ON t.pickup_zone_id = z.zone_id
@@ -398,10 +415,10 @@ def insights():
                 ORDER BY trips DESC
                 LIMIT 10
             """)
-            morning_hotspots = [safe_dict(r) for r in conn.execute(sql2_morning, params).fetchall()]
+            morning = [safe_dict(r) for r in conn.execute(sql2, params).fetchall()]
 
-            # 3) Evening hotspots
-            sql2_evening = text(f"""
+            # Evening hotspots
+            sql3 = text(f"""
                 SELECT t.pickup_zone_id, COALESCE(z.zone_name, 'Unknown') AS zone_name, COUNT(*) AS trips
                 FROM trips t
                 LEFT JOIN zones z ON t.pickup_zone_id = z.zone_id
@@ -411,81 +428,31 @@ def insights():
                 ORDER BY trips DESC
                 LIMIT 10
             """)
-            evening_hotspots = [safe_dict(r) for r in conn.execute(sql2_evening, params).fetchall()]
+            evening = [safe_dict(r) for r in conn.execute(sql3, params).fetchall()]
 
-            # 4) Fare efficiency
-            sql3 = text(f"""
-                SELECT 
-                    t.pickup_zone_id,
-                    COALESCE(z.zone_name, 'Unknown') AS zone_name,
-                    ROUND(AVG(t.fare_per_km), 2) AS avg_fare_per_km,
-                    ROUND(AVG(t.tip_pct)*100, 2) AS avg_tip_pct,
-                    COUNT(*) AS trips
-                FROM trips t
-                LEFT JOIN zones z ON t.pickup_zone_id = z.zone_id
-                WHERE 1=1 {clause} 
-                    AND t.fare_per_km IS NOT NULL
-                    AND t.tip_pct IS NOT NULL
-                GROUP BY t.pickup_zone_id, z.zone_name
-                HAVING COUNT(*) > 50
-                ORDER BY avg_fare_per_km DESC
-                LIMIT 20
-            """)
-            fare_efficiency = [safe_dict(r) for r in conn.execute(sql3, params).fetchall()]
-
-        payload = {
-            "insight_1_rush_hour": {
-                "explanation": "Trips by hour showing demand peaks",
-                "data": rush_rows
-            },
-            "insight_2_spatial_hotspots": {
-                "explanation": "Top pickup zones: morning (7-9am) vs evening (5-7pm)",
-                "morning_top10": morning_hotspots,
-                "evening_top10": evening_hotspots
-            },
-            "insight_3_fare_efficiency": {
-                "explanation": "Zones by fare per km and tip percentage",
-                "data": fare_efficiency
+        return jsonify({
+            "rush_hour": {"explanation": "Trips by hour", "data": rush_rows},
+            "spatial_hotspots": {
+                "explanation": "Morning vs Evening demand",
+                "morning": morning,
+                "evening": evening
             }
-        }
-        return jsonify(payload)
+        })
     
     except Exception as e:
-        app.logger.error(f"Error in /api/insights: {e}")
+        logger.error(f"Error in /api/insights: {e}")
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/", methods=["GET"])
-def root():
-    return jsonify({
-        "status": "ok",
-        "message": "NYC Taxi Analytics API",
-        "endpoints": [
-            "/api/summary",
-            "/api/time-series",
-            "/api/hotspots",
-            "/api/fare-stats",
-            "/api/top-routes",
-            "/api/trips",
-            "/api/insights"
-        ]
-    })
-
-
-@app.route("/health", methods=["GET"])
-def health():
-    """Health check endpoint"""
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return jsonify({"status": "healthy", "database": "connected"})
-    except Exception as e:
-        return jsonify({"status": "unhealthy", "error": str(e)}), 503
-
-
 if __name__ == "__main__":
+    port = int(os.getenv("PORT", 5000))
+    debug = os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true")
+    
+    logger.info(f"Starting Flask app on port {port}")
+    logger.info(f"Database URL: {DATABASE_URL}")
+    
     app.run(
         host="0.0.0.0",
-        port=int(os.getenv("PORT", 5000)),
-        debug=os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true")
+        port=port,
+        debug=debug
     )
