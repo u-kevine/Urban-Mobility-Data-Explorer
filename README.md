@@ -97,7 +97,7 @@ Top Routes Aggregation:
 - Select top k routes by count.
 
 # Pseudo-code:
-![Pseudo-code](assets/pseudo-code-screenshot.png)
+![Pseudo-code](frontend/assets/pseudo-code.png)
 
 
 Complexity: O(n log k) time, O(n) space.
