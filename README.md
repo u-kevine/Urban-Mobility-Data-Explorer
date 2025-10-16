@@ -22,8 +22,8 @@ A comprehensive NYC Taxi Dashboard for analyzing urban mobility patterns with re
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd Urban-Mobility-Data-Explorer-1
+   git clone https://github.com/u-kevine/Urban-Mobility-Data-Explorer.git
+   cd Urban-Mobility-Data-Explorer-3
    ```
 
 2. **Install dependencies**
