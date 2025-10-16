@@ -65,44 +65,38 @@ Clone repository:
 * git clone https://github.com/yourusername/trip-dashboard.git
 * cd trip-dashboard
 
+* Install dependencies:
+* npm install
 
-Install dependencies:
+* Start the server:
+* npm run start
 
-npm install
+* Open index.html in a browser or navigate to http://localhost:3000.
 
+# Usage
 
-Start the server:
+- Use filters to select specific trips by date, hour, distance, and fare.
 
-npm run start
+- Hover over charts for details.
 
+- Toggle light/dark mode with the button in the top-right.
 
-Open index.html in a browser or navigate to http://localhost:3000.
+- Heatmap and top routes dynamically update via manual aggregation endpoints.
 
-Usage
-
-Use filters to select specific trips by date, hour, distance, and fare.
-
-Hover over charts for details.
-
-Toggle light/dark mode with the button in the top-right.
-
-Heatmap and top routes dynamically update via manual aggregation endpoints.
-
-Manual Algorithms
-
+# Manual Algorithms
 Top Routes Aggregation:
 
-Round pickup/dropoff coordinates to a precision (e.g., 3 decimal places).
+- Round pickup/dropoff coordinates to a precision (e.g., 3 decimal places).
 
-Use a Map object:
+- Use a Map object:
 
-Key = pickup_lat,pickup_lon,dropoff_lat,dropoff_lon
+-  Key = pickup_lat,pickup_lon,dropoff_lat,dropoff_lon
 
-Value = trip count.
+-  Value = trip count.
 
-Select top k routes by count.
+= Select top k routes by count.
 
-Pseudo-code:
+# Pseudo-code:
 
 routeCount = {}
 for trip in trips:
@@ -114,7 +108,7 @@ topRoutes = select k keys with highest counts
 
 Complexity: O(n log k) time, O(n) space.
 
-Insights
+# Insights
 
 Busiest Hours: 8–9 AM and 5–7 PM.
 
