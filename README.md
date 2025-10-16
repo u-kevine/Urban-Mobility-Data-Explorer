@@ -1,68 +1,69 @@
-**# Urban-Mobility-Data-Explorer
-**
+# Urban-Mobility-Data-Explorer
+
 # Project Overview
 
 The Trip Data Dashboard is a web-based tool for analyzing urban taxi trip data. It allows users to explore trip patterns, fare trends, trip durations, busiest hours, and top routes. The dashboard includes interactive charts, filters, and custom algorithms to generate insights for urban mobility planning.
 
-**#Features**
+# Features
 
--Display trips in a dynamic table.
+- Display trips in a dynamic table.
 
--Histogram charts: Trip duration, distance, and speed.
+- Histogram charts: Trip duration, distance, and speed.
 
--Busiest hours chart (top 5).
+- Busiest hours chart (top 5).
 
--Daily fare trend line chart.
+- Daily fare trend line chart.
 
--Heatmap visualization of trip locations (manual clustering).
+- Heatmap visualization of trip locations (manual clustering).
 
--Top routes identification (manual aggregation).
+- Top routes identification (manual aggregation).
 
--Filters: Date range, hour, distance, fare.
+- Filters: Date range, hour, distance, fare.
 
--Light/dark theme toggle.
+- Light/dark theme toggle.
 
-#Dataset
+# Dataset
 
--Source: Urban taxi trip records.
+- Source: Urban taxi trip records.
 
--Key fields:
+- Key fields:
 
--pickup_datetime, dropoff_datetime
+- pickup_datetime, dropoff_datetime
 
--trip_duration (seconds)
+- trip_duration (seconds)
 
--trip_distance (km)
+- trip_distance (km)
 
--trip_speed_kmh (km/h)
+- trip_speed_kmh (km/h)
 
--fare_amount, fare_per_km
+- fare_amount, fare_per_km
 
--passenger_count
+- passenger_count
 
-#Challenges:
-Missing values, outliers, inconsistent timestamps.
+# Challenges:
 
-Cleaning assumptions: Invalid or negative values removed from stats/charts.
+* Missing values, outliers, inconsistent timestamps.
 
-System Architecture
+* Cleaning assumptions: Invalid or negative values removed from stats/charts.
+
+# System Architecture
 [Frontend: HTML/CSS/JS + Chart.js] → [Backend: Node.js/Express API] → [Data: CSV/JSON]
 
 
-Frontend: Interactive charts and filters using Chart.js and vanilla JS.
+- Frontend: Interactive charts and filters using Chart.js and vanilla JS.
 
-Backend: Node.js with Express serving trip and algorithm endpoints.
+- Backend: Node.js with Express serving trip and algorithm endpoints.
 
-Data: CSV/JSON files read into memory, filtered, and served via API.
+- Data: CSV/JSON files read into memory, filtered, and served via API.
 
-Manual Algorithms: Implemented top routes aggregation and heatmap clustering without libraries.
+= Manual Algorithms: Implemented top routes aggregation and heatmap clustering without libraries.
 
-Installation
+# Installation
 
 Clone repository:
 
-git clone https://github.com/yourusername/trip-dashboard.git
-cd trip-dashboard
+* git clone https://github.com/yourusername/trip-dashboard.git
+* cd trip-dashboard
 
 
 Install dependencies:
