@@ -1,5 +1,10 @@
 # Urban-Mobility-Data-Explorer
 
+# Team 17
+- Kevine Uwisanga
+- Nkhomotabo Amazing Mkhonta
+- Tito Jean Sibo
+
 # Project Overview
 
 The Trip Data Dashboard is a web-based tool for analyzing urban taxi trip data. It allows users to explore trip patterns, fare trends, trip durations, busiest hours, and top routes. The dashboard includes interactive charts, filters, and custom algorithms to generate insights for urban mobility planning.
