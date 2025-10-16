@@ -1,1 +1,3 @@
-df.head(1000).to_csv("data/samples/sample_1000.csv", index=False)
+version https://git-lfs.github.com/spec/v1
+oid sha256:1b72a8fc392052843f52fe6f70aa0cb099748d1fe71bed5d3e1abecfa5c88951
+size 66

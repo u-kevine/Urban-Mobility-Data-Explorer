@@ -1,26 +1,3 @@
-chunk_index,excluded_count,sample_reason
-1,200000,invalid_distance;invalid_fare
-2,200000,invalid_distance;invalid_fare
-3,200000,invalid_distance;invalid_fare
-4,200000,invalid_distance;invalid_fare
-5,200000,invalid_distance;invalid_fare
-6,200000,invalid_distance;invalid_fare
-7,200000,invalid_distance;invalid_fare
-8,58644,invalid_distance;invalid_fare
-1,200000,invalid_distance;invalid_fare
-2,200000,invalid_distance;invalid_fare
-3,200000,invalid_distance;invalid_fare
-4,200000,invalid_distance;invalid_fare
-5,200000,invalid_distance;invalid_fare
-6,200000,invalid_distance;invalid_fare
-7,200000,invalid_distance;invalid_fare
-8,58644,invalid_distance;invalid_fare
-1,155,invalid_dropoff_coord
-2,158,invalid_pickup_coord;invalid_dropoff_coord
-3,136,invalid_dropoff_coord
-4,159,invalid_dropoff_coord
-5,185,invalid_dropoff_coord
-6,128,unrealistic_speed
-7,152,invalid_dropoff_coord
-8,39,invalid_dropoff_coord
-
+version https://git-lfs.github.com/spec/v1
+oid sha256:d6f06e904b6742ad72998fa7bee132524f6f519995d3848992249cf26d3ee1ee
+size 904
