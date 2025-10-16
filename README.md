@@ -112,18 +112,18 @@ Complexity: O(n log k) time, O(n) space.
 
 1. Busiest Hours: 8–9 AM and 5–7 PM.
 
--  Visualization: Bar chart.
--  Insight: Peak commuting times for city planning.
+-   Visualization: Bar chart.
+-   Insight: Peak commuting times for city planning.
 
 2. Fare Trends: Daily average fare_per_km higher on weekends.
 
--  Visualization: Line chart.
--  Insight: Reflects demand-driven pricing.
+-   Visualization: Line chart.
+-   Insight: Reflects demand-driven pricing.
 
 3. Trip Duration Distribution: Most trips 5–15 minutes; long tail beyond 45 minutes.
 
--  Visualization: Histogram.
--  Insight: Short trips dominate urban mobility; long trips may indicate congestion or anomalies.
+-   Visualization: Histogram.
+-   Insight: Short trips dominate urban mobility; long trips may indicate congestion or anomalies.
 
 # Technical Decisions
 
@@ -137,12 +137,12 @@ Complexity: O(n log k) time, O(n) space.
 
 # Future Work
 
-Integrate a database for scalability (PostgreSQL or MongoDB).
+- Integrate a database for scalability (PostgreSQL or MongoDB).
 
-Stream real-time trip data and visualize live heatmaps.
+- Stream real-time trip data and visualize live heatmaps.
 
-Predictive analytics: trip duration, fare estimation.
+- Predictive analytics: trip duration, fare estimation.
 
-Export filtered datasets for further analysis.
+- Export filtered datasets for further analysis.
 
-Enhance UI/UX for mobile devices.
+- Enhance UI/UX for mobile devices.
