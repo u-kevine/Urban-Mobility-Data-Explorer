@@ -56,7 +56,7 @@ The Trip Data Dashboard is a web-based tool for analyzing urban taxi trip data. 
 
 - Data: CSV/JSON files read into memory, filtered, and served via API.
 
-= Manual Algorithms: Implemented top routes aggregation and heatmap clustering without libraries.
+- Manual Algorithms: Implemented top routes aggregation and heatmap clustering without libraries.
 
 # Installation
 
@@ -90,11 +90,11 @@ Top Routes Aggregation:
 
 - Use a Map object:
 
--  Key = pickup_lat,pickup_lon,dropoff_lat,dropoff_lon
+-    Key = pickup_lat,pickup_lon,dropoff_lat,dropoff_lon
 
--  Value = trip count.
+-    Value = trip count.
 
-= Select top k routes by count.
+- Select top k routes by count.
 
 # Pseudo-code:
 
@@ -110,25 +110,25 @@ Complexity: O(n log k) time, O(n) space.
 
 # Insights
 
-Busiest Hours: 8–9 AM and 5–7 PM.
+1. Busiest Hours: 8–9 AM and 5–7 PM.
 
-Visualization: Bar chart.
+   - Visualization: Bar chart.
 
-Insight: Peak commuting times for city planning.
+   - Insight: Peak commuting times for city planning.
 
-Fare Trends: Daily average fare_per_km higher on weekends.
+2. Fare Trends: Daily average fare_per_km higher on weekends.
 
-Visualization: Line chart.
+   -Visualization: Line chart.
 
-Insight: Reflects demand-driven pricing.
+   -Insight: Reflects demand-driven pricing.
 
-Trip Duration Distribution: Most trips 5–15 minutes; long tail beyond 45 minutes.
+3. Trip Duration Distribution: Most trips 5–15 minutes; long tail beyond 45 minutes.
 
-Visualization: Histogram.
+   -Visualization: Histogram.
 
-Insight: Short trips dominate urban mobility; long trips may indicate congestion or anomalies.
+   -Insight: Short trips dominate urban mobility; long trips may indicate congestion or anomalies.
 
-Technical Decisions
+# Technical Decisions
 
 Stack Choice: Lightweight vanilla JS frontend + Node.js backend.
 
@@ -138,7 +138,7 @@ Manual Algorithms: Avoided built-in sorting or counting libraries to demonstrate
 
 Charts: Chart.js chosen for responsive and interactive visualizations.
 
-Future Work
+# Future Work
 
 Integrate a database for scalability (PostgreSQL or MongoDB).
 
