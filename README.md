@@ -113,30 +113,27 @@ Complexity: O(n log k) time, O(n) space.
 1. Busiest Hours: 8–9 AM and 5–7 PM.
 
    - Visualization: Bar chart.
-
    - Insight: Peak commuting times for city planning.
 
 2. Fare Trends: Daily average fare_per_km higher on weekends.
 
-   -Visualization: Line chart.
-
-   -Insight: Reflects demand-driven pricing.
+  - Visualization: Line chart.
+  - Insight: Reflects demand-driven pricing.
 
 3. Trip Duration Distribution: Most trips 5–15 minutes; long tail beyond 45 minutes.
 
-   -Visualization: Histogram.
-
-   -Insight: Short trips dominate urban mobility; long trips may indicate congestion or anomalies.
+  - Visualization: Histogram.
+  -  Insight: Short trips dominate urban mobility; long trips may indicate congestion or anomalies.
 
 # Technical Decisions
 
-Stack Choice: Lightweight vanilla JS frontend + Node.js backend.
+- Stack Choice: Lightweight vanilla JS frontend + Node.js backend.
 
-Trade-offs: Flat file data for simplicity; may not scale beyond 50,000 rows.
+- Trade-offs: Flat file data for simplicity; may not scale beyond 50,000 rows.
 
-Manual Algorithms: Avoided built-in sorting or counting libraries to demonstrate algorithmic understanding.
+- Manual Algorithms: Avoided built-in sorting or counting libraries to demonstrate algorithmic understanding.
 
-Charts: Chart.js chosen for responsive and interactive visualizations.
+- Charts: Chart.js chosen for responsive and interactive visualizations.
 
 # Future Work
 
