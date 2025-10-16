@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'http://localhost:5001';
 let lastRows = [];
 
 async function fetchTrips(limit = 200, offset = 0, start = null, end = null) {
@@ -72,23 +72,110 @@ function updateTable(rows) {
   if (!tbody) return;
   tbody.innerHTML = '';
   rows.forEach((t) => {
-    const dSec = t.trip_duration != null ? Number(t.trip_duration) : null;
+    const dSec = t.trip_duration_seconds != null ? Number(t.trip_duration_seconds) : null;
     const durationMin = dSec != null && isFinite(dSec) ? dSec / 60 : null;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${t.id ?? ''}</td>
       <td>${t.pickup_datetime ?? ''}</td>
       <td>${t.dropoff_datetime ?? ''}</td>
-      <td>${durationMin != null ? Number(durationMin).toFixed(1) : '—'}</td>
-      <td>${t.trip_distance != null ? Number(t.trip_distance).toFixed(2) : '—'}</td>
-      <td>${t.trip_speed_kmh != null ? Number(t.trip_speed_kmh).toFixed(1) : '—'}</td>
-      <td>${t.passenger_count ?? '—'}</td>
+      <td>${durationMin != null ? Number(durationMin).toFixed(1) : '-'}</td>
+      <td>${t.trip_distance_km != null ? Number(t.trip_distance_km).toFixed(2) : '-'}</td>
+      <td>${t.trip_speed_kmh != null ? Number(t.trip_speed_kmh).toFixed(1) : '-'}</td>
+      <td>${t.passenger_count ?? '-'}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
 let durationChart, distanceChart, speedChart, hourChart, heatmapChart, topRoutesChart, busiestHoursChart, fareTrendChart;
+function renderHeatmap(data) {
+  const ctx = document.getElementById('heatmapChart')?.getContext('2d');
+  if (!ctx || !data || data.length === 0) return;
+  
+  // Create a simple scatter plot to represent the heatmap
+  const points = data.slice(0, 100).map(d => ({
+    x: d.lon,
+    y: d.lat,
+    v: d.count
+  }));
+  
+  if (heatmapChart) heatmapChart.destroy();
+  heatmapChart = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Pickup Locations',
+        data: points,
+        backgroundColor: points.map(p => `rgba(255, ${Math.max(0, 255 - p.v * 5)}, 0, 0.6)`),
+        pointRadius: points.map(p => Math.min(10, Math.max(2, p.v / 100)))
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { title: { display: true, text: 'Longitude' } },
+        y: { title: { display: true, text: 'Latitude' } }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const point = context.raw;
+              return `Trips: ${point.v}, Lat: ${point.y}, Lon: ${point.x}`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTopRoutes(data) {
+  const ctx = document.getElementById('topRoutesChart')?.getContext('2d');
+  if (!ctx || !data || data.length === 0) return;
+  
+  // Create a bar chart showing top routes by count
+  const labels = data.slice(0, 10).map((d, i) => `Route ${i + 1}`);
+  const counts = data.slice(0, 10).map(d => d.count);
+  
+  if (topRoutesChart) topRoutesChart.destroy();
+  topRoutesChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Trip Count',
+        data: counts,
+        backgroundColor: '#8b5cf6',
+        borderColor: '#7c3aed',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            afterLabel: function(context) {
+              const route = data[context.dataIndex];
+              return [
+                `From: ${route.pickup_lat}, ${route.pickup_lon}`,
+                `To: ${route.dropoff_lat}, ${route.dropoff_lon}`,
+                `Avg Distance: ${route.avg_distance}km`,
+                `Avg Fare: $${route.avg_fare}`
+              ];
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
 function renderCharts(rows) {
   const ctxDuration = document.getElementById('durationChart')?.getContext('2d');
   const ctxDistance = document.getElementById('distanceChart')?.getContext('2d');
@@ -101,7 +188,7 @@ function renderCharts(rows) {
   const durLabels = ['<5', '5-10', '10-15', '15-20', '20-30', '30-45', '45-60', '60+'];
   const durCounts = Array(durLabels.length).fill(0);
   rows.forEach((t) => {
-    const vSec = Number(t.trip_duration);
+    const vSec = Number(t.trip_duration_seconds);
     const v = isFinite(vSec) ? vSec / 60 : NaN;
     if (!isFinite(v)) return;
     let idx = durBins.findIndex((b) => v < b);
@@ -120,7 +207,7 @@ function renderCharts(rows) {
   const distLabels = ['<2', '2-5', '5-10', '10-20', '20-50', '50+'];
   const distCounts = Array(distLabels.length).fill(0);
   rows.forEach((t) => {
-    const v = Number(t.trip_distance);
+    const v = Number(t.trip_distance_km);
     if (!isFinite(v)) return;
     let idx = distBins.findIndex((b) => v < b);
     if (idx === -1) idx = distLabels.length - 1;
@@ -187,8 +274,8 @@ function toggleTheme() {
 function updateStats(rows, totalFromServer) {
   const totalTrips = totalFromServer ?? rows.length;
   const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
-  const durs = rows.map(r => Number(r.trip_duration)).filter(Number.isFinite);
-  const dists = rows.map(r => Number(r.trip_distance)).filter(Number.isFinite);
+  const durs = rows.map(r => Number(r.trip_duration_seconds)).filter(Number.isFinite);
+  const dists = rows.map(r => Number(r.trip_distance_km)).filter(Number.isFinite);
   const speeds = rows.map(r => Number(r.trip_speed_kmh)).filter(Number.isFinite);
 
   const elTotal = document.getElementById('total-trips');
@@ -260,7 +347,7 @@ async function init() {
           }
         }
         // distance
-        const dist = Number(t.trip_distance);
+        const dist = Number(t.trip_distance_km);
         if (!isNaN(dmin) && isFinite(dmin) && isFinite(dist) && dist < dmin) return false;
         if (!isNaN(dmax) && isFinite(dmax) && isFinite(dist) && dist > dmax) return false;
         // fare (if present)
@@ -278,7 +365,7 @@ async function init() {
     });
   } catch (err) {
     console.error(err);
-    alert('Failed to load trips. Make sure the API is running on http://localhost:3000');
+    alert('Failed to load trips. Make sure the API is running on http://localhost:5001 and the database is connected. Error: ' + err.message);
   }
 }
 

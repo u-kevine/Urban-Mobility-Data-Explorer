@@ -1,10 +1,13 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import isnan
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+import random
+import json
 
 # Optional: load .env
 try:
@@ -15,9 +18,21 @@ except Exception:
 
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/nyc_taxi")
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+# Try to create engine, but fall back to mock data if database is not available
+try:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+    # Test connection
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+    USE_MOCK_DATA = False
+except Exception as e:
+    print(f"Database connection failed: {e}")
+    print("Using mock data instead...")
+    engine = None
+    USE_MOCK_DATA = True
 
 app = Flask(__name__)
+CORS(app)
 
 
 # -------------------------
@@ -34,6 +49,67 @@ def handle_exception(e):
         "type": type(e).__name__
     }), 500
 
+
+# -------------------------
+# Mock Data Generation
+# -------------------------
+def generate_mock_trips(count=200):
+    """Generate mock trip data for demonstration"""
+    trips = []
+    base_date = datetime(2024, 1, 1)
+    
+    for i in range(count):
+        # Random pickup time within last 30 days
+        pickup_time = base_date.replace(
+            day=random.randint(1, 30),
+            hour=random.randint(0, 23),
+            minute=random.randint(0, 59)
+        )
+        
+        # Trip duration between 5 minutes and 2 hours
+        duration_seconds = random.randint(300, 7200)
+        dropoff_time = pickup_time + timedelta(seconds=duration_seconds)
+        
+        # NYC coordinates (approximate bounds)
+        pickup_lat = round(random.uniform(40.4774, 40.9176), 6)
+        pickup_lon = round(random.uniform(-74.2591, -73.7004), 6)
+        dropoff_lat = round(random.uniform(40.4774, 40.9176), 6)
+        dropoff_lon = round(random.uniform(-74.2591, -73.7004), 6)
+        
+        # Distance and fare calculations
+        distance_km = round(random.uniform(0.5, 25.0), 2)
+        fare_amount = round(random.uniform(5.0, 80.0), 2)
+        tip_amount = round(random.uniform(0.0, fare_amount * 0.3), 2)
+        speed_kmh = round(distance_km / (duration_seconds / 3600), 1) if duration_seconds > 0 else 0
+        fare_per_km = round(fare_amount / distance_km, 2) if distance_km > 0 else 0
+        tip_pct = round(tip_amount / fare_amount, 3) if fare_amount > 0 else 0
+        
+        trip = {
+            'id': i + 1,
+            'vendor_id': random.randint(1, 3),
+            'pickup_datetime': pickup_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'dropoff_datetime': dropoff_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'pickup_lat': pickup_lat,
+            'pickup_lon': pickup_lon,
+            'dropoff_lat': dropoff_lat,
+            'dropoff_lon': dropoff_lon,
+            'passenger_count': random.randint(1, 6),
+            'trip_distance_km': distance_km,
+            'trip_duration_seconds': duration_seconds,
+            'fare_amount': fare_amount,
+            'tip_amount': tip_amount,
+            'trip_speed_kmh': speed_kmh,
+            'fare_per_km': fare_per_km,
+            'tip_pct': tip_pct,
+            'hour_of_day': pickup_time.hour,
+            'day_of_week': pickup_time.strftime('%A')
+        }
+        trips.append(trip)
+    
+    return trips
+
+# Generate mock data once at startup
+MOCK_TRIPS = generate_mock_trips(1000) if USE_MOCK_DATA else []
 
 # -------------------------
 # Utilities
@@ -297,6 +373,28 @@ def top_routes():
 def trips():
     """Paginated trip details with better validation"""
     try:
+        if USE_MOCK_DATA:
+            # Use mock data
+            limit = min(int(request.args.get("limit", 200)), 1000)
+            offset = int(request.args.get("offset", 0))
+            
+            # Simple pagination of mock data
+            total = len(MOCK_TRIPS)
+            start_idx = offset
+            end_idx = min(offset + limit, total)
+            page_data = MOCK_TRIPS[start_idx:end_idx]
+            
+            return jsonify({
+                "data": page_data,
+                "pagination": {
+                    "page": (offset // limit) + 1,
+                    "limit": limit,
+                    "total": total,
+                    "offset": offset
+                }
+            })
+        
+        # Original database code
         start = parse_date_param("start")
         end = parse_date_param("end")
         params = {}
@@ -360,10 +458,197 @@ def trips():
             except:
                 total = -1  # Unknown if query times out
 
-        return jsonify({"page": page, "limit": limit, "total": total, "rows": rows})
+        return jsonify({
+            "data": rows,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "offset": offset
+            }
+        })
     
     except Exception as e:
         app.logger.error(f"Error in /api/trips: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/heatmap-manual", methods=["GET"])
+def heatmap_manual():
+    """Manual heatmap endpoint for pickup locations"""
+    try:
+        if USE_MOCK_DATA:
+            # Generate mock heatmap data
+            k = min(int(request.args.get("k", 100)), 500)
+            precision = int(request.args.get("precision", 3))
+            
+            # Group mock trips by rounded coordinates
+            coord_counts = {}
+            for trip in MOCK_TRIPS:
+                lat = round(trip['pickup_lat'], precision)
+                lon = round(trip['pickup_lon'], precision)
+                key = (lat, lon)
+                coord_counts[key] = coord_counts.get(key, 0) + 1
+            
+            # Convert to list and sort by count
+            heatmap_data = [
+                {"lat": lat, "lon": lon, "count": count}
+                for (lat, lon), count in coord_counts.items()
+            ]
+            heatmap_data.sort(key=lambda x: x['count'], reverse=True)
+            
+            return jsonify({
+                "precision": precision,
+                "sampled": len(heatmap_data[:k]),
+                "k": k,
+                "data": heatmap_data[:k]
+            })
+        
+        # Original database code
+        precision = int(request.args.get("precision", 3))
+        limit_rows = min(int(request.args.get("limitRows", 50000)), 100000)
+        k = min(int(request.args.get("k", 10000)), 50000)
+        
+        start = parse_date_param("start")
+        end = parse_date_param("end")
+        params = {}
+        clause = date_filter_clause(params, start, end)
+        
+        # Round coordinates to create a grid
+        sql = text(f"""
+            SELECT 
+                ROUND(pickup_lat, :precision) AS lat,
+                ROUND(pickup_lon, :precision) AS lon,
+                COUNT(*) AS count
+            FROM trips
+            WHERE 1=1 {clause}
+                AND pickup_lat IS NOT NULL 
+                AND pickup_lon IS NOT NULL
+                AND pickup_lat BETWEEN 40.4 AND 40.9
+                AND pickup_lon BETWEEN -74.3 AND -73.7
+            GROUP BY lat, lon
+            HAVING count > 0
+            ORDER BY count DESC
+            LIMIT :k
+        """)
+        params.update({"precision": precision, "k": k})
+        
+        with engine.connect() as conn:
+            rows = [safe_dict(r) for r in conn.execute(sql, params).fetchall()]
+            
+        return jsonify({
+            "precision": precision,
+            "sampled": len(rows),
+            "k": k,
+            "data": rows
+        })
+    
+    except Exception as e:
+        app.logger.error(f"Error in /api/heatmap-manual: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/top-routes-manual", methods=["GET"])
+def top_routes_manual():
+    """Manual top routes endpoint"""
+    try:
+        if USE_MOCK_DATA:
+            # Generate mock top routes data
+            k = min(int(request.args.get("k", 10)), 50)
+            precision = int(request.args.get("precision", 3))
+            
+            # Group mock trips by rounded route coordinates
+            route_counts = {}
+            for trip in MOCK_TRIPS:
+                pickup_lat = round(trip['pickup_lat'], precision)
+                pickup_lon = round(trip['pickup_lon'], precision)
+                dropoff_lat = round(trip['dropoff_lat'], precision)
+                dropoff_lon = round(trip['dropoff_lon'], precision)
+                
+                key = (pickup_lat, pickup_lon, dropoff_lat, dropoff_lon)
+                if key not in route_counts:
+                    route_counts[key] = {
+                        'count': 0,
+                        'total_distance': 0,
+                        'total_fare': 0
+                    }
+                
+                route_counts[key]['count'] += 1
+                route_counts[key]['total_distance'] += trip['trip_distance_km']
+                route_counts[key]['total_fare'] += trip['fare_amount']
+            
+            # Convert to list and calculate averages
+            routes_data = []
+            for (pickup_lat, pickup_lon, dropoff_lat, dropoff_lon), stats in route_counts.items():
+                if stats['count'] > 1:  # Only routes with multiple trips
+                    routes_data.append({
+                        "pickup_lat": pickup_lat,
+                        "pickup_lon": pickup_lon,
+                        "dropoff_lat": dropoff_lat,
+                        "dropoff_lon": dropoff_lon,
+                        "count": stats['count'],
+                        "avg_distance": round(stats['total_distance'] / stats['count'], 2),
+                        "avg_fare": round(stats['total_fare'] / stats['count'], 2)
+                    })
+            
+            # Sort by count and return top k
+            routes_data.sort(key=lambda x: x['count'], reverse=True)
+            
+            return jsonify({
+                "precision": precision,
+                "sampled": len(routes_data[:k]),
+                "k": k,
+                "data": routes_data[:k]
+            })
+        
+        # Original database code
+        precision = int(request.args.get("precision", 3))
+        limit_rows = min(int(request.args.get("limitRows", 50000)), 100000)
+        k = min(int(request.args.get("k", 10)), 100)
+        
+        start = parse_date_param("start")
+        end = parse_date_param("end")
+        params = {}
+        clause = date_filter_clause(params, start, end)
+        
+        sql = text(f"""
+            SELECT 
+                ROUND(pickup_lat, :precision) AS pickup_lat,
+                ROUND(pickup_lon, :precision) AS pickup_lon,
+                ROUND(dropoff_lat, :precision) AS dropoff_lat,
+                ROUND(dropoff_lon, :precision) AS dropoff_lon,
+                COUNT(*) AS count,
+                ROUND(AVG(trip_distance_km), 2) AS avg_distance,
+                ROUND(AVG(fare_amount), 2) AS avg_fare
+            FROM trips
+            WHERE 1=1 {clause}
+                AND pickup_lat IS NOT NULL 
+                AND pickup_lon IS NOT NULL
+                AND dropoff_lat IS NOT NULL 
+                AND dropoff_lon IS NOT NULL
+                AND pickup_lat BETWEEN 40.4 AND 40.9
+                AND pickup_lon BETWEEN -74.3 AND -73.7
+                AND dropoff_lat BETWEEN 40.4 AND 40.9
+                AND dropoff_lon BETWEEN -74.3 AND -73.7
+            GROUP BY pickup_lat, pickup_lon, dropoff_lat, dropoff_lon
+            HAVING count > 1
+            ORDER BY count DESC
+            LIMIT :k
+        """)
+        params.update({"precision": precision, "k": k})
+        
+        with engine.connect() as conn:
+            rows = [safe_dict(r) for r in conn.execute(sql, params).fetchall()]
+            
+        return jsonify({
+            "precision": precision,
+            "sampled": len(rows),
+            "k": k,
+            "data": rows
+        })
+    
+    except Exception as e:
+        app.logger.error(f"Error in /api/top-routes-manual: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -475,6 +760,13 @@ def root():
 @app.route("/health", methods=["GET"])
 def health():
     """Health check endpoint"""
+    if USE_MOCK_DATA:
+        return jsonify({
+            "status": "healthy", 
+            "database": "mock_data", 
+            "trips_count": len(MOCK_TRIPS)
+        })
+    
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
@@ -484,8 +776,11 @@ def health():
 
 
 if __name__ == "__main__":
+    # For development, run only on localhost for security
+    # In production, use a proper WSGI server like gunicorn
     app.run(
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 5000)),
-        debug=os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true")
+        host="127.0.0.1",  # Only bind to localhost for security
+        port=int(os.getenv("PORT", 5001)),
+        debug=os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true"),
+        threaded=True  # Enable threading for better performance
     )

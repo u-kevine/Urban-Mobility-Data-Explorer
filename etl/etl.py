@@ -353,7 +353,7 @@ def validate_input_file(input_path):
         print(f"ERROR: Input file is empty: {input_path}")
         sys.exit(1)
     
-    print(f"✓ Input file validated: {input_path} ({os.path.getsize(input_path)} bytes)")
+    print(f"Input file validated: {input_path} ({os.path.getsize(input_path)} bytes)")
 
 
 def main():
@@ -373,7 +373,7 @@ def main():
             autocommit=False,
             charset="utf8mb4"
         )
-        print(f"✓ Connected to MySQL: {args.mysql_user}@{args.mysql_host}/{args.mysql_db}")
+        print(f"Connected to MySQL: {args.mysql_user}@{args.mysql_host}/{args.mysql_db}")
     except mysql.connector.Error as err:
         print("MySQL connection error:", err)
         sys.exit(1)
