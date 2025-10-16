@@ -1,13 +1,109 @@
 const API_BASE = 'http://localhost:5001';
 let lastRows = [];
+let isLoading = false;
+let retryCount = 0;
+const MAX_RETRIES = 3;
+let useMockData = false;
+
+// Test API connectivity
+async function testApiConnectivity() {
+  try {
+    console.log('Testing API connectivity...');
+    const response = await fetch(`${API_BASE}/health`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Health check failed: ${response.status}`);
+    }
+    
+    const health = await response.json();
+    console.log('API Health Check:', health);
+    return health;
+  } catch (error) {
+    console.error('API connectivity test failed:', error);
+    throw error;
+  }
+}
+
+// Mock data for testing when API is not available
+function getMockData() {
+  const mockTrips = [];
+  const now = new Date();
+  
+  for (let i = 0; i < 50; i++) {
+    const pickupTime = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000);
+    const duration = 300 + Math.random() * 1800; // 5-35 minutes
+    const dropoffTime = new Date(pickupTime.getTime() + duration * 1000);
+    const distance = 1 + Math.random() * 15; // 1-16 km
+    const speed = distance / (duration / 3600); // km/h
+    
+    mockTrips.push({
+      id: i + 1,
+      pickup_datetime: pickupTime.toISOString(),
+      dropoff_datetime: dropoffTime.toISOString(),
+      trip_duration_seconds: duration,
+      trip_distance_km: distance,
+      trip_speed_kmh: speed,
+      passenger_count: Math.floor(Math.random() * 4) + 1,
+      fare_amount: 5 + Math.random() * 25,
+      fare_per_km: (5 + Math.random() * 25) / distance
+    });
+  }
+  
+  return {
+    data: mockTrips,
+    pagination: { total: mockTrips.length, limit: 200, offset: 0 }
+  };
+}
 
 async function fetchTrips(limit = 200, offset = 0, start = null, end = null) {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (start) params.set('start', start);
   if (end) params.set('end', end);
-  const res = await fetch(`${API_BASE}/api/trips?${params.toString()}`);
-  if (!res.ok) throw new Error(`Failed to fetch trips: ${res.status}`);
-  return res.json(); // { data, pagination }
+  
+  const url = `${API_BASE}/api/trips?${params.toString()}`;
+  console.log('Fetching trips from:', url);
+  
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    
+    console.log('Response status:', res.status, res.statusText);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('Response error text:', errorText);
+      throw new Error(`HTTP ${res.status}: ${res.statusText} - ${errorText}`);
+    }
+    
+    const data = await res.json();
+    console.log('Received data:', { 
+      totalTrips: data.pagination?.total, 
+      dataLength: data.data?.length,
+      firstTrip: data.data?.[0] ? Object.keys(data.data[0]) : 'No trips'
+    });
+    
+    retryCount = 0; // Reset retry count on success
+    return data;
+  } catch (error) {
+    console.error('Fetch trips error:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    throw new Error(`Failed to fetch trips: ${error.message}`);
+  }
 }
 
 function renderBusiestHoursTop5(rows) {
@@ -55,16 +151,60 @@ function renderFareTrendDaily(rows) {
 
 async function fetchHeatmapManual(precision = 3, limitRows = 50000, k = 10000) {
   const params = new URLSearchParams({ precision: String(precision), limitRows: String(limitRows), k: String(k) });
-  const res = await fetch(`${API_BASE}/api/heatmap-manual?${params.toString()}`);
-  if (!res.ok) throw new Error(`Failed to fetch heatmap: ${res.status}`);
-  return res.json(); // { precision, sampled, k, data: [{lat, lon, count}] }
+  const url = `${API_BASE}/api/heatmap-manual?${params.toString()}`;
+  console.log('Fetching heatmap from:', url);
+  
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${res.statusText} - ${errorText}`);
+    }
+    
+    const data = await res.json();
+    console.log('Received heatmap data:', { dataLength: data.data?.length });
+    return data;
+  } catch (error) {
+    console.error('Fetch heatmap error:', error);
+    throw new Error(`Failed to fetch heatmap: ${error.message}`);
+  }
 }
 
 async function fetchTopRoutesManual(precision = 3, limitRows = 50000, k = 10) {
   const params = new URLSearchParams({ precision: String(precision), limitRows: String(limitRows), k: String(k) });
-  const res = await fetch(`${API_BASE}/api/top-routes-manual?${params.toString()}`);
-  if (!res.ok) throw new Error(`Failed to fetch top routes: ${res.status}`);
-  return res.json(); // { precision, sampled, k, data: [{pickup_lat, pickup_lon, dropoff_lat, dropoff_lon, count, ...}] }
+  const url = `${API_BASE}/api/top-routes-manual?${params.toString()}`;
+  console.log('Fetching top routes from:', url);
+  
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${res.statusText} - ${errorText}`);
+    }
+    
+    const data = await res.json();
+    console.log('Received routes data:', { dataLength: data.data?.length });
+    return data;
+  } catch (error) {
+    console.error('Fetch top routes error:', error);
+    throw new Error(`Failed to fetch top routes: ${error.message}`);
+  }
 }
 
 function updateTable(rows) {
@@ -288,8 +428,80 @@ function updateStats(rows, totalFromServer) {
   if (elSpeed) elSpeed.textContent = avg(speeds).toFixed(1);
 }
 
+function showLoading(show = true) {
+  const loadingElements = document.querySelectorAll('.loading-indicator');
+  loadingElements.forEach(el => {
+    el.style.display = show ? 'block' : 'none';
+  });
+  
+  // Show/hide main content
+  const mainContent = document.querySelectorAll('.stats-grid, .charts-grid, .table-container');
+  mainContent.forEach(el => {
+    el.style.opacity = show ? '0.5' : '1';
+    el.style.pointerEvents = show ? 'none' : 'auto';
+  });
+}
+
+function showError(message, isRetryable = false) {
+  const errorContainer = document.getElementById('error-container');
+  if (errorContainer) {
+    errorContainer.innerHTML = `
+      <div class="error-message">
+        <h3>⚠️ Connection Error</h3>
+        <p>${message}</p>
+        ${isRetryable ? '<button id="retry-btn" class="btn">Retry</button>' : ''}
+        <details style="margin-top: 10px;">
+          <summary>Troubleshooting</summary>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Make sure the API server is running on http://localhost:5001</li>
+            <li>Check that the database is connected</li>
+            <li>Try refreshing the page</li>
+            <li>Check the browser console for more details</li>
+          </ul>
+        </details>
+      </div>
+    `;
+    errorContainer.style.display = 'block';
+    
+    if (isRetryable) {
+      const retryBtn = document.getElementById('retry-btn');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+          errorContainer.style.display = 'none';
+          init();
+        });
+      }
+    }
+  }
+}
+
+function hideError() {
+  const errorContainer = document.getElementById('error-container');
+  if (errorContainer) {
+    errorContainer.style.display = 'none';
+  }
+}
+
+async function retryWithBackoff(fn, maxRetries = MAX_RETRIES) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      
+      const delay = Math.min(1000 * Math.pow(2, i), 5000); // Exponential backoff, max 5s
+      console.log(`Retry ${i + 1}/${maxRetries} in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 async function init() {
   try {
+    hideError();
+    showLoading(true);
+    isLoading = true;
+    
     applyTheme();
     const toggleBtn = document.getElementById('theme-toggle');
     if (toggleBtn) toggleBtn.addEventListener('click', toggleTheme);
@@ -303,20 +515,98 @@ async function init() {
       });
     }
 
-    const result = await fetchTrips(200, 0);
+    // Test API connectivity first
+    let apiHealth;
+    try {
+      apiHealth = await testApiConnectivity();
+      console.log('API is healthy:', apiHealth);
+    } catch (connectivityError) {
+      console.warn('API connectivity failed, will use mock data:', connectivityError.message);
+      useMockData = true;
+    }
+
+    // Fetch main data with retry
+    let result;
+    try {
+      if (useMockData) {
+        throw new Error('Using mock data due to API connectivity issues');
+      }
+      result = await retryWithBackoff(() => fetchTrips(200, 0));
+    } catch (apiError) {
+      console.warn('API not available, using mock data:', apiError.message);
+      useMockData = true;
+      result = getMockData();
+      
+      // Show a warning that we're using mock data
+      const warningContainer = document.getElementById('error-container');
+      if (warningContainer) {
+        warningContainer.innerHTML = `
+          <div class="warning-message">
+            <h3>⚠️ Using Demo Data</h3>
+            <p>Unable to connect to the API server. Displaying sample data for demonstration.</p>
+            <p><small>API Status: ${apiError.message}</small></p>
+            <p><small>To see real data, make sure the API server is running on http://localhost:5001</small></p>
+          </div>
+        `;
+        warningContainer.style.display = 'block';
+        warningContainer.style.background = 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)';
+        warningContainer.style.borderColor = '#f59e0b';
+      }
+    }
+    
     const rows = result?.data ?? [];
     lastRows = rows;
+    
+    console.log('Dashboard initialized with', rows.length, 'trips');
+    
     updateTable(lastRows);
     updateStats(lastRows, result?.pagination?.total);
     renderCharts(lastRows);
     renderBusiestHoursTop5(lastRows);
     renderFareTrendDaily(lastRows);
 
-    // Render manual algorithm charts
-    const heatmap = await fetchHeatmapManual(3, 50000, 5000);
-    renderHeatmap(heatmap.data || []);
-    const routes = await fetchTopRoutesManual(3, 50000, 50);
-    renderTopRoutes(routes.data || []);
+    // Render manual algorithm charts with retry
+    if (useMockData) {
+      // Generate mock heatmap data
+      const mockHeatmapData = [];
+      for (let i = 0; i < 20; i++) {
+        mockHeatmapData.push({
+          lat: 40.7 + (Math.random() - 0.5) * 0.2,
+          lon: -74.0 + (Math.random() - 0.5) * 0.2,
+          count: Math.floor(Math.random() * 1000) + 100
+        });
+      }
+      renderHeatmap(mockHeatmapData);
+      
+      // Generate mock routes data
+      const mockRoutesData = [];
+      for (let i = 0; i < 10; i++) {
+        mockRoutesData.push({
+          pickup_lat: 40.7 + (Math.random() - 0.5) * 0.2,
+          pickup_lon: -74.0 + (Math.random() - 0.5) * 0.2,
+          dropoff_lat: 40.7 + (Math.random() - 0.5) * 0.2,
+          dropoff_lon: -74.0 + (Math.random() - 0.5) * 0.2,
+          count: Math.floor(Math.random() * 500) + 50,
+          avg_distance: 2 + Math.random() * 10,
+          avg_fare: 8 + Math.random() * 15
+        });
+      }
+      renderTopRoutes(mockRoutesData);
+    } else {
+      try {
+        const heatmap = await retryWithBackoff(() => fetchHeatmapManual(3, 50000, 5000));
+        renderHeatmap(heatmap.data || []);
+      } catch (heatmapError) {
+        console.warn('Failed to load heatmap data:', heatmapError.message);
+      }
+      
+      try {
+        const routes = await retryWithBackoff(() => fetchTopRoutesManual(3, 50000, 50));
+        renderTopRoutes(routes.data || []);
+      } catch (routesError) {
+        console.warn('Failed to load routes data:', routesError.message);
+      }
+    }
 
     // Filters
     const btn = document.getElementById('apply-filters');
@@ -363,9 +653,26 @@ async function init() {
       renderBusiestHoursTop5(filtered);
       renderFareTrendDaily(filtered);
     });
+    
+    showLoading(false);
+    isLoading = false;
+    
   } catch (err) {
-    console.error(err);
-    alert('Failed to load trips. Make sure the API is running on http://localhost:5001 and the database is connected. Error: ' + err.message);
+    console.error('Init error:', err);
+    console.error('Full error details:', {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    });
+    showLoading(false);
+    isLoading = false;
+    
+    const isNetworkError = err.message.includes('fetch') || err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('CORS');
+    const errorMessage = isNetworkError 
+      ? 'Unable to connect to the API server. Please make sure the server is running on http://localhost:5001 and CORS is properly configured.'
+      : `Failed to load data: ${err.message}`;
+    
+    showError(errorMessage, true);
   }
 }
 
