@@ -97,13 +97,7 @@ Top Routes Aggregation:
 - Select top k routes by count.
 
 # Pseudo-code:
-
-routeCount = {}
-for trip in trips:
-    key = round(trip.pickup_lat,3)+","+round(trip.pickup_lon,3)+
-          ","+round(trip.dropoff_lat,3)+","+round(trip.dropoff_lon,3)
-    routeCount[key] = routeCount.get(key,0)+1
-topRoutes = select k keys with highest counts
+![Pseudo-code](assets/pseudo-code-screenshot.png)
 
 
 Complexity: O(n log k) time, O(n) space.
