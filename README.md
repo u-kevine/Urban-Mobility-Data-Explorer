@@ -103,3 +103,5 @@ db/                  # Database schema
 ### License
 
 This project is licensed under the MIT License.
+youtube video
+https://youtu.be/6hXp0vrk6y8
